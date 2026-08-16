@@ -30,8 +30,19 @@ local function newHost(apps, initialFrontmost, settingsStore)
 
   local hs = {
     application = {},
+    eventtap = {},
     hotkey = {},
     settings = {},
+  }
+
+  hs.eventtap.event = {
+    rawFlagMasks = {
+      alternate = 2,
+      deviceRightAlternate = 4,
+    },
+    types = {
+      flagsChanged = 12,
+    },
   }
 
   hs.application.watcher = {
@@ -59,14 +70,49 @@ local function newHost(apps, initialFrontmost, settingsStore)
     return true
   end
 
-  function hs.hotkey.bind(modifiers, key, callback)
-    host.hotkeys[key] = {
+  function hs.hotkey.new(modifiers, key, callback)
+    local hotkey = {
       modifiers = modifiers,
       callback = callback,
+      enabled = false,
     }
-    return {}
+    function hotkey:enable()
+      self.enabled = true
+      return self
+    end
+    function hotkey:disable()
+      self.enabled = false
+      return self
+    end
+    host.hotkeys[key] = hotkey
+    return hotkey
   end
 
+  function hs.eventtap.new(_, callback)
+    host.modifierCallback = callback
+    return {
+      start = function(self)
+        return self
+      end,
+    }
+  end
+
+  function host:setRawFlags(rawFlags)
+    self.modifierCallback({
+      rawFlags = function()
+        return rawFlags
+      end,
+    })
+  end
+
+  function host:press(key)
+    local hotkey = self.hotkeys[key]
+    if not hotkey or not hotkey.enabled then
+      return false
+    end
+    hotkey.callback()
+    return true
+  end
 
   function hs.settings.get(key)
     return host.settingsStore[key]
@@ -111,7 +157,7 @@ local function newApp(name, bundleID, kind)
   return app
 end
 
-test("Hyper+letter focuses the most recently activated matching app", function()
+test("Right Option+letter focuses the most recently activated matching app", function()
   local finder = newApp("Finder", "com.apple.finder")
   local safari = newApp("Safari", "com.apple.Safari")
   local slack = newApp("Slack", "com.tinyspeck.slackmacgap")
@@ -129,7 +175,7 @@ test("Hyper+letter focuses the most recently activated matching app", function()
   assertEqual(slack.activationCount, 1, "most recent matching app activation count")
   assertEqual(safari.activationCount, 0, "older matching app activation count")
   assertEqual(background.activationCount, 0, "non-Dock app activation count")
-  assertEqual(table.concat(host.hotkeys.s.modifiers, "+"), "cmd+alt+ctrl+shift", "Hyper modifiers")
+  assertEqual(table.concat(host.hotkeys.s.modifiers, "+"), "alt", "hotkey modifiers")
 end)
 
 test("repeated presses cycle through same-letter apps in a stable order", function()
@@ -185,6 +231,24 @@ test("a remembered app can be launched after it quits and Hammerspoon reloads", 
   secondHost.hotkeys.s.callback()
 
   assertEqual(secondHost.launchedBundleID, "com.apple.Safari", "launched bundle ID")
+end)
+
+test("only Right Option enables and consumes the letter shortcuts", function()
+  local finder = newApp("Finder", "com.apple.finder")
+  local safari = newApp("Safari", "com.apple.Safari")
+  local fakeHs, host = newHost({ finder, safari }, finder)
+  _G.hs = fakeHs
+  dofile("HamCmd.spoon/init.lua"):start()
+
+  host:setRawFlags(fakeHs.eventtap.event.rawFlagMasks.alternate)
+  assertEqual(host:press("s"), false, "Left Option shortcut consumption")
+
+  host:setRawFlags(fakeHs.eventtap.event.rawFlagMasks.deviceRightAlternate)
+  assertEqual(host:press("s"), true, "Right Option shortcut consumption")
+  assertEqual(safari.activationCount, 1, "Right Option app activation count")
+
+  host:setRawFlags(0)
+  assertEqual(host:press("s"), false, "shortcut consumption after releasing Right Option")
 end)
 
 if failures > 0 then

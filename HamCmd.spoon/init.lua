@@ -6,8 +6,12 @@ obj.version = "0.1.0"
 obj.author = "DropBear Labs"
 obj.license = "MIT"
 
-obj.hyper = { "cmd", "alt", "ctrl", "shift" }
+obj.hotkeyModifiers = { "alt" }
 obj.settingsKey = "HamCmd.state"
+
+local function maskIsSet(value, mask)
+  return math.floor(value / mask) % 2 == 1
+end
 
 local function initialKey(app)
   local name = app:name()
@@ -128,18 +132,39 @@ function obj:switch(key)
   end
 end
 
+function obj:_setHotkeysEnabled(enabled)
+  if self._hotkeysEnabled == enabled then
+    return
+  end
+
+  for _, hotkey in pairs(self._hotkeys) do
+    if enabled then
+      hotkey:enable()
+    else
+      hotkey:disable()
+    end
+  end
+  self._hotkeysEnabled = enabled
+end
+
 function obj:start()
   local state = hs.settings.get(self.settingsKey) or {}
   self._mru = state.mru or {}
   self._lastByKey = state.lastByKey or {}
   self._hotkeys = {}
+  self._hotkeysEnabled = false
 
   for byte = string.byte("a"), string.byte("z") do
     local key = string.char(byte)
-    self._hotkeys[key] = hs.hotkey.bind(self.hyper, key, function()
+    self._hotkeys[key] = hs.hotkey.new(self.hotkeyModifiers, key, function()
       self:switch(key)
     end)
   end
+
+  local rightAltMask = hs.eventtap.event.rawFlagMasks.deviceRightAlternate
+  self._modifierWatcher = hs.eventtap.new({ hs.eventtap.event.types.flagsChanged }, function(event)
+    self:_setHotkeysEnabled(maskIsSet(event:rawFlags(), rightAltMask))
+  end):start()
 
   self._watcher = hs.application.watcher.new(function(_, event, app)
     if event == hs.application.watcher.activated then

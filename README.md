@@ -1,8 +1,9 @@
 # HamCmd
 
-HamCmd is a small Hammerspoon Spoon for switching applications with `Hyper + letter`.
-It is designed for a Karabiner-Elements mapping that emits Hyper
-(`Command + Option + Control + Shift`) from Right Option.
+HamCmd is a small Hammerspoon Spoon for switching applications with
+`Right Option + letter`. It distinguishes the physical Right Option key inside
+Hammerspoon, leaving normal Left Option shortcuts untouched. Karabiner-Elements
+is not required.
 
 ## Behaviour
 
