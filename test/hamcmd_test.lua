@@ -16,11 +16,12 @@ local function test(name, body)
   end
 end
 
-local function newHost(apps, initialFrontmost)
+local function newHost(apps, initialFrontmost, settingsStore)
   local host = {
     apps = apps,
     frontmost = initialFrontmost,
     hotkeys = {},
+    settingsStore = settingsStore or {},
   }
 
   for _, app in ipairs(apps) do
@@ -30,6 +31,7 @@ local function newHost(apps, initialFrontmost)
   local hs = {
     application = {},
     hotkey = {},
+    settings = {},
   }
 
   hs.application.watcher = {
@@ -52,12 +54,26 @@ local function newHost(apps, initialFrontmost)
     return host.frontmost
   end
 
+  function hs.application.launchOrFocusByBundleID(bundleID)
+    host.launchedBundleID = bundleID
+    return true
+  end
+
   function hs.hotkey.bind(modifiers, key, callback)
     host.hotkeys[key] = {
       modifiers = modifiers,
       callback = callback,
     }
     return {}
+  end
+
+
+  function hs.settings.get(key)
+    return host.settingsStore[key]
+  end
+
+  function hs.settings.set(key, value)
+    host.settingsStore[key] = value
   end
 
   return hs, host
@@ -154,6 +170,21 @@ test("pressing the key for the only matching frontmost app hides it", function()
 
   assertEqual(safari.hideCount, 1, "hide count")
   assertEqual(safari.activationCount, 0, "activation count")
+end)
+
+test("a remembered app can be launched after it quits and Hammerspoon reloads", function()
+  local settingsStore = {}
+  local safari = newApp("Safari", "com.apple.Safari")
+  local firstHs = newHost({ safari }, safari, settingsStore)
+  _G.hs = firstHs
+  dofile("HamCmd.spoon/init.lua"):start()
+
+  local secondHs, secondHost = newHost({}, nil, settingsStore)
+  _G.hs = secondHs
+  dofile("HamCmd.spoon/init.lua"):start()
+  secondHost.hotkeys.s.callback()
+
+  assertEqual(secondHost.launchedBundleID, "com.apple.Safari", "launched bundle ID")
 end)
 
 if failures > 0 then

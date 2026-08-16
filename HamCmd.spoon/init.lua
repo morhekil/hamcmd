@@ -7,6 +7,7 @@ obj.author = "DropBear Labs"
 obj.license = "MIT"
 
 obj.hyper = { "cmd", "alt", "ctrl", "shift" }
+obj.settingsKey = "HamCmd.state"
 
 local function initialKey(app)
   local name = app:name()
@@ -30,6 +31,11 @@ function obj:_remember(app)
     end
   end
   table.insert(self._mru, 1, bundleID)
+  self._lastByKey[initialKey(app)] = bundleID
+  hs.settings.set(self.settingsKey, {
+    lastByKey = self._lastByKey,
+    mru = self._mru,
+  })
 end
 
 function obj:_candidates(key)
@@ -61,6 +67,10 @@ function obj:switch(key)
   local candidates = self:_candidates(key)
   if not candidates[1] then
     self._cycle = nil
+    local bundleID = self._lastByKey[key]
+    if bundleID then
+      hs.application.launchOrFocusByBundleID(bundleID)
+    end
     return
   end
 
@@ -119,7 +129,9 @@ function obj:switch(key)
 end
 
 function obj:start()
-  self._mru = {}
+  local state = hs.settings.get(self.settingsKey) or {}
+  self._mru = state.mru or {}
+  self._lastByKey = state.lastByKey or {}
   self._hotkeys = {}
 
   for byte = string.byte("a"), string.byte("z") do
