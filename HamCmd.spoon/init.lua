@@ -3,7 +3,7 @@ obj.__index = obj
 
 obj.name = "HamCmd"
 obj.version = "0.1.0"
-obj.author = "Drop Bear Labs"
+obj.author = "DropBear Labs"
 obj.license = "MIT"
 
 obj.hyper = { "cmd", "alt", "ctrl", "shift" }
@@ -59,8 +59,54 @@ end
 
 function obj:switch(key)
   local candidates = self:_candidates(key)
-  if candidates[1] then
-    candidates[1]:activate()
+  if not candidates[1] then
+    self._cycle = nil
+    return
+  end
+
+  local byBundleID = {}
+  for _, app in ipairs(candidates) do
+    byBundleID[app:bundleID()] = app
+  end
+
+  local frontmost = hs.application.frontmostApplication()
+  local frontmostID = frontmost and frontmost:bundleID() or nil
+  local target
+
+  if self._cycle and self._cycle.key == key and self._cycle.targetID == frontmostID then
+    for offset = 1, #self._cycle.order do
+      local index = ((self._cycle.index + offset - 1) % #self._cycle.order) + 1
+      local candidate = byBundleID[self._cycle.order[index]]
+      if candidate then
+        self._cycle.index = index
+        target = candidate
+        break
+      end
+    end
+  else
+    local order = {}
+    local targetIndex = 1
+    for index, app in ipairs(candidates) do
+      table.insert(order, app:bundleID())
+      if app:bundleID() == frontmostID then
+        targetIndex = (index % #candidates) + 1
+      end
+    end
+    self._cycle = {
+      key = key,
+      order = order,
+      index = targetIndex,
+    }
+    target = candidates[targetIndex]
+  end
+
+  if target then
+    self._cycle.targetID = target:bundleID()
+    self._expectedActivation = target:bundleID()
+    if not target:activate() then
+      self._cycle = nil
+      self._expectedActivation = nil
+    end
   end
 end
 
@@ -77,6 +123,12 @@ function obj:start()
 
   self._watcher = hs.application.watcher.new(function(_, event, app)
     if event == hs.application.watcher.activated then
+      local bundleID = app and app:bundleID() or nil
+      if self._expectedActivation == bundleID then
+        self._expectedActivation = nil
+      else
+        self._cycle = nil
+      end
       self:_remember(app)
     end
   end):start()

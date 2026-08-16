@@ -110,6 +110,33 @@ test("Hyper+letter focuses the most recently activated matching app", function()
   assertEqual(table.concat(host.hotkeys.s.modifiers, "+"), "cmd+alt+ctrl+shift", "Hyper modifiers")
 end)
 
+test("repeated presses cycle through same-letter apps in a stable order", function()
+  local finder = newApp("Finder", "com.apple.finder")
+  local safari = newApp("Safari", "com.apple.Safari")
+  local spotify = newApp("Spotify", "com.spotify.client")
+  local slack = newApp("Slack", "com.tinyspeck.slackmacgap")
+  local fakeHs, host = newHost({ finder, safari, spotify, slack }, finder)
+  _G.hs = fakeHs
+
+  local hamcmd = dofile("HamCmd.spoon/init.lua")
+  hamcmd:start()
+
+  host.watcherCallback(safari:name(), fakeHs.application.watcher.activated, safari)
+  host.watcherCallback(spotify:name(), fakeHs.application.watcher.activated, spotify)
+  host.watcherCallback(slack:name(), fakeHs.application.watcher.activated, slack)
+
+  host.hotkeys.s.callback()
+  host.watcherCallback(slack:name(), fakeHs.application.watcher.activated, slack)
+  assertEqual(host.frontmost, slack, "first app")
+
+  host.hotkeys.s.callback()
+  host.watcherCallback(spotify:name(), fakeHs.application.watcher.activated, spotify)
+  assertEqual(host.frontmost, spotify, "second app")
+
+  host.hotkeys.s.callback()
+  assertEqual(host.frontmost, safari, "third app")
+end)
+
 if failures > 0 then
   os.exit(1)
 end
