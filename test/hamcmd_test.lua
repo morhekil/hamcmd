@@ -168,6 +168,24 @@ test("Right Option+letter focuses the most recently activated matching app", fun
   assertEqual(table.concat(host.hotkeys.s.modifiers, "+"), "alt", "hotkey modifiers")
 end)
 
+test("a fixed shortcut overrides the MRU open-app match", function()
+  local finder = newApp("Finder", "com.apple.finder")
+  local chrome = newApp("Google Chrome", "com.google.Chrome")
+  local claude = newApp("Claude", "com.anthropic.claudefordesktop")
+  local fakeHs, host = newHost({ finder, chrome, claude }, finder)
+  _G.hs = fakeHs
+
+  local hamcmd = dofile("HamCmd.spoon/init.lua")
+  hamcmd.shortcuts = { c = "com.google.Chrome" }
+  hamcmd:start()
+  host.watcherCallback(chrome:name(), fakeHs.application.watcher.activated, chrome)
+  host.watcherCallback(claude:name(), fakeHs.application.watcher.activated, claude)
+  host.hotkeys.c.callback()
+
+  assertEqual(chrome.activationCount, 1, "fixed app activation count")
+  assertEqual(claude.activationCount, 0, "dynamic app activation count")
+end)
+
 test("an unconfigured key does not cycle through same-letter apps", function()
   local finder = newApp("Finder", "com.apple.finder")
   local safari = newApp("Safari", "com.apple.Safari")

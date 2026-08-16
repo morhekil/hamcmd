@@ -7,6 +7,7 @@ obj.author = "DropBear Labs"
 obj.license = "MIT"
 
 obj.hotkeyModifiers = { "alt" }
+obj.shortcuts = {}
 
 local function maskIsSet(value, mask)
   return math.floor(value / mask) % 2 == 1
@@ -61,7 +62,28 @@ function obj:_candidates(key)
   return candidates
 end
 
+function obj:_runningApp(bundleID)
+  for _, app in ipairs(hs.application.runningApplications()) do
+    if app:kind() == 1 and app:bundleID() == bundleID then
+      return app
+    end
+  end
+  return nil
+end
+
 function obj:switch(key)
+  local fixedBundleID = self.shortcuts[key]
+  if fixedBundleID then
+    local fixedApp = self:_runningApp(fixedBundleID)
+    if fixedApp then
+      local frontmost = hs.application.frontmostApplication()
+      if not frontmost or fixedApp:bundleID() ~= frontmost:bundleID() then
+        fixedApp:activate()
+      end
+      return
+    end
+  end
+
   local candidates = self:_candidates(key)
   if not candidates[1] then
     return
