@@ -16,7 +16,7 @@ end
 
 local function initialKey(app)
   local name = app:name()
-  return name and name:lower():match("^%s*([a-z])") or nil
+  return name and name:lower():match("([a-z])") or nil
 end
 
 local function isSwitchable(app)

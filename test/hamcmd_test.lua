@@ -178,6 +178,20 @@ test("Right Option+letter focuses the most recently activated matching app", fun
   assertEqual(table.concat(host.hotkeys.s.modifiers, "+"), "alt", "hotkey modifiers")
 end)
 
+test("an unconfigured key ignores an invisible prefix in an application name", function()
+  local finder = newApp("Finder", "com.apple.finder")
+  local leftToRightMark = string.char(0xE2, 0x80, 0x8E)
+  local whatsapp = newApp(leftToRightMark .. "WhatsApp", "net.whatsapp.WhatsApp")
+  local fakeHs, host = newHost({ finder, whatsapp }, finder)
+  _G.hs = fakeHs
+
+  local hamcmd = dofile("HamCmd.spoon/init.lua")
+  hamcmd:start()
+  host.hotkeys.w.callback()
+
+  assertEqual(whatsapp.activationCount, 1, "WhatsApp activation count")
+end)
+
 test("a fixed shortcut overrides the MRU open-app match", function()
   local finder = newApp("Finder", "com.apple.finder")
   local chrome = newApp("Google Chrome", "com.google.Chrome")
