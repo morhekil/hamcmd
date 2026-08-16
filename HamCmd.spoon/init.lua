@@ -71,21 +71,76 @@ function obj:_runningApp(bundleID)
   return nil
 end
 
-function obj:switch(key)
-  local fixedBundleID = self.shortcuts[key]
-  if fixedBundleID then
-    local fixedApp = self:_runningApp(fixedBundleID)
-    if fixedApp then
-      local frontmost = hs.application.frontmostApplication()
-      if not frontmost or fixedApp:bundleID() ~= frontmost:bundleID() then
-        fixedApp:activate()
-      end
+function obj:_activateCycleTarget(target)
+  self._cycle.targetID = target:bundleID()
+  if not target:activate() then
+    self._cycle = nil
+  end
+end
+
+function obj:_advanceCycle()
+  for offset = 1, #self._cycle.order do
+    local index = ((self._cycle.index + offset - 1) % #self._cycle.order) + 1
+    local target = self:_runningApp(self._cycle.order[index])
+    if target then
+      self._cycle.index = index
+      self:_activateCycleTarget(target)
       return
     end
+  end
+  self._cycle = nil
+end
+
+function obj:_startCycle(key, fixedApp)
+  local order = { fixedApp:bundleID() }
+  for _, app in ipairs(self:_candidates(key)) do
+    if app:bundleID() ~= fixedApp:bundleID() then
+      table.insert(order, app:bundleID())
+    end
+  end
+
+  if #order == 1 then
+    return
+  end
+
+  self._cycle = {
+    key = key,
+    order = order,
+    index = 1,
+    targetID = fixedApp:bundleID(),
+  }
+  self:_advanceCycle()
+end
+
+function obj:_switchFixed(key, fixedBundleID)
+  local fixedApp = self:_runningApp(fixedBundleID)
+  if not fixedApp then
+    self._cycle = nil
     hs.application.launchOrFocusByBundleID(fixedBundleID)
     return
   end
 
+  local frontmost = hs.application.frontmostApplication()
+  local frontmostID = frontmost and frontmost:bundleID() or nil
+  if self._cycle and self._cycle.key == key and self._cycle.targetID == frontmostID then
+    self:_advanceCycle()
+  elseif fixedBundleID == frontmostID then
+    self._cycle = nil
+    self:_startCycle(key, fixedApp)
+  else
+    self._cycle = nil
+    fixedApp:activate()
+  end
+end
+
+function obj:switch(key)
+  local fixedBundleID = self.shortcuts[key]
+  if fixedBundleID then
+    self:_switchFixed(key, fixedBundleID)
+    return
+  end
+
+  self._cycle = nil
   local candidates = self:_candidates(key)
   if not candidates[1] then
     return

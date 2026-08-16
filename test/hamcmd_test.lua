@@ -201,6 +201,31 @@ test("a fixed shortcut launches its app when it is not running", function()
   assertEqual(claude.activationCount, 0, "dynamic app activation count")
 end)
 
+test("a foreground fixed app starts a stable same-letter cycle", function()
+  local chrome = newApp("Google Chrome", "com.google.Chrome")
+  local claude = newApp("Claude", "com.anthropic.claudefordesktop")
+  local calculator = newApp("Calculator", "com.apple.calculator")
+  local fakeHs, host = newHost({ chrome, claude, calculator }, chrome)
+  _G.hs = fakeHs
+
+  local hamcmd = dofile("HamCmd.spoon/init.lua")
+  hamcmd.shortcuts = { c = "com.google.Chrome" }
+  hamcmd:start()
+  host.watcherCallback(calculator:name(), fakeHs.application.watcher.activated, calculator)
+  host.watcherCallback(claude:name(), fakeHs.application.watcher.activated, claude)
+
+  host.hotkeys.c.callback()
+  host.watcherCallback(claude:name(), fakeHs.application.watcher.activated, claude)
+  assertEqual(host.frontmost, claude, "first cycled app")
+
+  host.hotkeys.c.callback()
+  host.watcherCallback(calculator:name(), fakeHs.application.watcher.activated, calculator)
+  assertEqual(host.frontmost, calculator, "second cycled app")
+
+  host.hotkeys.c.callback()
+  assertEqual(host.frontmost, chrome, "fixed app after wrapping")
+end)
+
 test("an unconfigured key does not cycle through same-letter apps", function()
   local finder = newApp("Finder", "com.apple.finder")
   local safari = newApp("Safari", "com.apple.Safari")
