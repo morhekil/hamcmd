@@ -66,6 +66,7 @@ end
 local function newApp(name, bundleID, kind)
   local app = {
     activationCount = 0,
+    hideCount = 0,
   }
 
   function app:name()
@@ -83,6 +84,11 @@ local function newApp(name, bundleID, kind)
   function app:activate()
     self.activationCount = self.activationCount + 1
     self._host.frontmost = self
+    return true
+  end
+
+  function app:hide()
+    self.hideCount = self.hideCount + 1
     return true
   end
 
@@ -135,6 +141,19 @@ test("repeated presses cycle through same-letter apps in a stable order", functi
 
   host.hotkeys.s.callback()
   assertEqual(host.frontmost, safari, "third app")
+end)
+
+test("pressing the key for the only matching frontmost app hides it", function()
+  local safari = newApp("Safari", "com.apple.Safari")
+  local fakeHs, host = newHost({ safari }, safari)
+  _G.hs = fakeHs
+
+  local hamcmd = dofile("HamCmd.spoon/init.lua")
+  hamcmd:start()
+  host.hotkeys.s.callback()
+
+  assertEqual(safari.hideCount, 1, "hide count")
+  assertEqual(safari.activationCount, 0, "activation count")
 end)
 
 if failures > 0 then

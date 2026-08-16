@@ -71,6 +71,14 @@ function obj:switch(key)
 
   local frontmost = hs.application.frontmostApplication()
   local frontmostID = frontmost and frontmost:bundleID() or nil
+
+  if #candidates == 1 and candidates[1]:bundleID() == frontmostID then
+    self._cycle = nil
+    self._expectedActivation = nil
+    candidates[1]:hide()
+    return
+  end
+
   local target
 
   if self._cycle and self._cycle.key == key and self._cycle.targetID == frontmostID then
