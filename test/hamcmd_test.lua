@@ -16,12 +16,11 @@ local function test(name, body)
   end
 end
 
-local function newHost(apps, initialFrontmost, settingsStore)
+local function newHost(apps, initialFrontmost)
   local host = {
     apps = apps,
     frontmost = initialFrontmost,
     hotkeys = {},
-    settingsStore = settingsStore or {},
   }
 
   for _, app in ipairs(apps) do
@@ -32,7 +31,6 @@ local function newHost(apps, initialFrontmost, settingsStore)
     application = {},
     eventtap = {},
     hotkey = {},
-    settings = {},
   }
 
   hs.eventtap.event = {
@@ -112,14 +110,6 @@ local function newHost(apps, initialFrontmost, settingsStore)
     end
     hotkey.callback()
     return true
-  end
-
-  function hs.settings.get(key)
-    return host.settingsStore[key]
-  end
-
-  function hs.settings.set(key, value)
-    host.settingsStore[key] = value
   end
 
   return hs, host
@@ -218,19 +208,18 @@ test("pressing the key for the only matching frontmost app hides it", function()
   assertEqual(safari.activationCount, 0, "activation count")
 end)
 
-test("a remembered app can be launched after it quits and Hammerspoon reloads", function()
-  local settingsStore = {}
+test("an unconfigured key does not launch an app remembered from an earlier run", function()
   local safari = newApp("Safari", "com.apple.Safari")
-  local firstHs = newHost({ safari }, safari, settingsStore)
+  local firstHs = newHost({ safari }, safari)
   _G.hs = firstHs
   dofile("HamCmd.spoon/init.lua"):start()
 
-  local secondHs, secondHost = newHost({}, nil, settingsStore)
+  local secondHs, secondHost = newHost({}, nil)
   _G.hs = secondHs
   dofile("HamCmd.spoon/init.lua"):start()
   secondHost.hotkeys.s.callback()
 
-  assertEqual(secondHost.launchedBundleID, "com.apple.Safari", "launched bundle ID")
+  assertEqual(secondHost.launchedBundleID, nil, "launched bundle ID")
 end)
 
 test("only Right Option enables and consumes the letter shortcuts", function()

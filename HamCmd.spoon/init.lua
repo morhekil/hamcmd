@@ -7,7 +7,6 @@ obj.author = "DropBear Labs"
 obj.license = "MIT"
 
 obj.hotkeyModifiers = { "alt" }
-obj.settingsKey = "HamCmd.state"
 
 local function maskIsSet(value, mask)
   return math.floor(value / mask) % 2 == 1
@@ -35,11 +34,6 @@ function obj:_remember(app)
     end
   end
   table.insert(self._mru, 1, bundleID)
-  self._lastByKey[initialKey(app)] = bundleID
-  hs.settings.set(self.settingsKey, {
-    lastByKey = self._lastByKey,
-    mru = self._mru,
-  })
 end
 
 function obj:_candidates(key)
@@ -71,10 +65,6 @@ function obj:switch(key)
   local candidates = self:_candidates(key)
   if not candidates[1] then
     self._cycle = nil
-    local bundleID = self._lastByKey[key]
-    if bundleID then
-      hs.application.launchOrFocusByBundleID(bundleID)
-    end
     return
   end
 
@@ -148,9 +138,7 @@ function obj:_setHotkeysEnabled(enabled)
 end
 
 function obj:start()
-  local state = hs.settings.get(self.settingsKey) or {}
-  self._mru = state.mru or {}
-  self._lastByKey = state.lastByKey or {}
+  self._mru = {}
   self._hotkeys = {}
   self._hotkeysEnabled = false
 
