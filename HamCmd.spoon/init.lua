@@ -14,9 +14,27 @@ local function maskIsSet(value, mask)
   return math.floor(value / mask) % 2 == 1
 end
 
+local function firstAsciiLetter(value)
+  return value and value:lower():match("([a-z])") or nil
+end
+
 local function initialKey(app)
   local name = app:name()
-  return name and name:lower():match("([a-z])") or nil
+  if not name then
+    return nil
+  end
+
+  local normalizedName = name:lower():match("[a-z].*")
+  local bundleID = app:bundleID()
+  local vendor = bundleID and bundleID:lower():match("^[^.]+%.([^.]+)%.") or nil
+  if normalizedName and vendor and normalizedName:sub(1, #vendor) == vendor then
+    local suffix = normalizedName:sub(#vendor + 1)
+    if suffix:match("^%s") then
+      return firstAsciiLetter(suffix)
+    end
+  end
+
+  return firstAsciiLetter(normalizedName)
 end
 
 local function isSwitchable(app)
