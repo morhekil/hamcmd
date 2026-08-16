@@ -186,6 +186,21 @@ test("a fixed shortcut overrides the MRU open-app match", function()
   assertEqual(claude.activationCount, 0, "dynamic app activation count")
 end)
 
+test("a fixed shortcut launches its app when it is not running", function()
+  local finder = newApp("Finder", "com.apple.finder")
+  local claude = newApp("Claude", "com.anthropic.claudefordesktop")
+  local fakeHs, host = newHost({ finder, claude }, finder)
+  _G.hs = fakeHs
+
+  local hamcmd = dofile("HamCmd.spoon/init.lua")
+  hamcmd.shortcuts = { c = "com.google.Chrome" }
+  hamcmd:start()
+  host.hotkeys.c.callback()
+
+  assertEqual(host.launchedBundleID, "com.google.Chrome", "launched bundle ID")
+  assertEqual(claude.activationCount, 0, "dynamic app activation count")
+end)
+
 test("an unconfigured key does not cycle through same-letter apps", function()
   local finder = newApp("Finder", "com.apple.finder")
   local safari = newApp("Safari", "com.apple.Safari")

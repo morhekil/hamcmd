@@ -82,6 +82,8 @@ function obj:switch(key)
       end
       return
     end
+    hs.application.launchOrFocusByBundleID(fixedBundleID)
+    return
   end
 
   local candidates = self:_candidates(key)
