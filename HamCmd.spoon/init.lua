@@ -8,6 +8,7 @@ obj.license = "MIT"
 
 obj.hotkeyModifiers = { "alt" }
 obj.shortcuts = {}
+obj.cycleTimeout = 1.0
 
 local function maskIsSet(value, mask)
   return math.floor(value / mask) % 2 == 1
@@ -84,6 +85,7 @@ function obj:_advanceCycle()
     local target = self:_runningApp(self._cycle.order[index])
     if target then
       self._cycle.index = index
+      self._cycle.lastPress = hs.timer.secondsSinceEpoch()
       self:_activateCycleTarget(target)
       return
     end
@@ -122,7 +124,12 @@ function obj:_switchFixed(key, fixedBundleID)
 
   local frontmost = hs.application.frontmostApplication()
   local frontmostID = frontmost and frontmost:bundleID() or nil
-  if self._cycle and self._cycle.key == key and self._cycle.targetID == frontmostID then
+  local now = hs.timer.secondsSinceEpoch()
+  local continuing = self._cycle
+    and self._cycle.key == key
+    and self._cycle.targetID == frontmostID
+    and now - self._cycle.lastPress <= self.cycleTimeout
+  if continuing then
     self:_advanceCycle()
   elseif fixedBundleID == frontmostID then
     self._cycle = nil

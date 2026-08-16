@@ -21,6 +21,7 @@ local function newHost(apps, initialFrontmost)
     apps = apps,
     frontmost = initialFrontmost,
     hotkeys = {},
+    now = 0,
   }
 
   for _, app in ipairs(apps) do
@@ -31,6 +32,7 @@ local function newHost(apps, initialFrontmost)
     application = {},
     eventtap = {},
     hotkey = {},
+    timer = {},
   }
 
   hs.eventtap.event = {
@@ -95,6 +97,10 @@ local function newHost(apps, initialFrontmost)
     }
   end
 
+  function hs.timer.secondsSinceEpoch()
+    return host.now
+  end
+
   function host:setRawFlags(rawFlags)
     self.modifierCallback({
       rawFlags = function()
@@ -110,6 +116,10 @@ local function newHost(apps, initialFrontmost)
     end
     hotkey.callback()
     return true
+  end
+
+  function host:advance(seconds)
+    self.now = self.now + seconds
   end
 
   return hs, host
@@ -224,6 +234,30 @@ test("a foreground fixed app starts a stable same-letter cycle", function()
 
   host.hotkeys.c.callback()
   assertEqual(host.frontmost, chrome, "fixed app after wrapping")
+end)
+
+test("a pause resets a fixed shortcut cycle back to the fixed app", function()
+  local chrome = newApp("Google Chrome", "com.google.Chrome")
+  local claude = newApp("Claude", "com.anthropic.claudefordesktop")
+  local calculator = newApp("Calculator", "com.apple.calculator")
+  local fakeHs, host = newHost({ chrome, claude, calculator }, chrome)
+  _G.hs = fakeHs
+
+  local hamcmd = dofile("HamCmd.spoon/init.lua")
+  hamcmd.shortcuts = { c = "com.google.Chrome" }
+  hamcmd.cycleTimeout = 1.0
+  hamcmd:start()
+  host.watcherCallback(calculator:name(), fakeHs.application.watcher.activated, calculator)
+  host.watcherCallback(claude:name(), fakeHs.application.watcher.activated, claude)
+
+  host.hotkeys.c.callback()
+  host.watcherCallback(claude:name(), fakeHs.application.watcher.activated, claude)
+  assertEqual(host.frontmost, claude, "cycled app before pause")
+
+  host:advance(1.1)
+  host.hotkeys.c.callback()
+  assertEqual(host.frontmost, chrome, "fixed app after pause")
+  assertEqual(calculator.activationCount, 0, "next cycle app activation count")
 end)
 
 test("an unconfigured key does not cycle through same-letter apps", function()
