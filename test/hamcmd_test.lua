@@ -168,7 +168,7 @@ test("Right Option+letter focuses the most recently activated matching app", fun
   assertEqual(table.concat(host.hotkeys.s.modifiers, "+"), "alt", "hotkey modifiers")
 end)
 
-test("repeated presses cycle through same-letter apps in a stable order", function()
+test("an unconfigured key does not cycle through same-letter apps", function()
   local finder = newApp("Finder", "com.apple.finder")
   local safari = newApp("Safari", "com.apple.Safari")
   local spotify = newApp("Spotify", "com.spotify.client")
@@ -188,14 +188,12 @@ test("repeated presses cycle through same-letter apps in a stable order", functi
   assertEqual(host.frontmost, slack, "first app")
 
   host.hotkeys.s.callback()
-  host.watcherCallback(spotify:name(), fakeHs.application.watcher.activated, spotify)
-  assertEqual(host.frontmost, spotify, "second app")
-
-  host.hotkeys.s.callback()
-  assertEqual(host.frontmost, safari, "third app")
+  assertEqual(host.frontmost, slack, "app after repeated press")
+  assertEqual(spotify.activationCount, 0, "second app activation count")
+  assertEqual(safari.activationCount, 0, "third app activation count")
 end)
 
-test("pressing the key for the only matching frontmost app hides it", function()
+test("an unconfigured key does nothing when its only match is frontmost", function()
   local safari = newApp("Safari", "com.apple.Safari")
   local fakeHs, host = newHost({ safari }, safari)
   _G.hs = fakeHs
@@ -204,7 +202,7 @@ test("pressing the key for the only matching frontmost app hides it", function()
   hamcmd:start()
   host.hotkeys.s.callback()
 
-  assertEqual(safari.hideCount, 1, "hide count")
+  assertEqual(safari.hideCount, 0, "hide count")
   assertEqual(safari.activationCount, 0, "activation count")
 end)
 
