@@ -18,27 +18,36 @@ local function firstAsciiLetter(value)
   return value and value:lower():match("([a-z])") or nil
 end
 
-local function initialKey(app)
+local function matchingKeys(app)
+  local keys = {}
   local name = app:name()
   if not name then
-    return nil
+    return keys
   end
 
   local normalizedName = name:lower():match("[a-z].*")
+  local displayedNameKey = firstAsciiLetter(normalizedName)
+  if displayedNameKey then
+    keys[displayedNameKey] = true
+  end
+
   local bundleID = app:bundleID()
   local vendor = bundleID and bundleID:lower():match("^[^.]+%.([^.]+)%.") or nil
   if normalizedName and vendor and normalizedName:sub(1, #vendor) == vendor then
     local suffix = normalizedName:sub(#vendor + 1)
     if suffix:match("^%s") then
-      return firstAsciiLetter(suffix)
+      local productNameKey = firstAsciiLetter(suffix)
+      if productNameKey then
+        keys[productNameKey] = true
+      end
     end
   end
 
-  return firstAsciiLetter(normalizedName)
+  return keys
 end
 
 local function isSwitchable(app)
-  return app and app:kind() == 1 and app:bundleID() ~= nil and initialKey(app) ~= nil
+  return app and app:kind() == 1 and app:bundleID() ~= nil and next(matchingKeys(app)) ~= nil
 end
 
 function obj:_remember(app)
@@ -64,7 +73,7 @@ function obj:_candidates(key)
 
   local candidates = {}
   for _, app in ipairs(hs.application.runningApplications()) do
-    if isSwitchable(app) and initialKey(app) == key then
+    if isSwitchable(app) and matchingKeys(app)[key] then
       table.insert(candidates, app)
     end
   end

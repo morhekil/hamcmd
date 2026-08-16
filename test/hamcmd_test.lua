@@ -205,6 +205,19 @@ test("an unconfigured key ignores a bundle vendor prefix in an application name"
   assertEqual(excel.activationCount, 1, "Excel activation count")
 end)
 
+test("a vendor-prefixed app also matches its displayed-name initial", function()
+  local finder = newApp("Finder", "com.apple.finder")
+  local excel = newApp("Microsoft Excel", "com.microsoft.Excel")
+  local fakeHs, host = newHost({ finder, excel }, finder)
+  _G.hs = fakeHs
+
+  local hamcmd = dofile("HamCmd.spoon/init.lua")
+  hamcmd:start()
+  host.hotkeys.m.callback()
+
+  assertEqual(excel.activationCount, 1, "Excel activation count")
+end)
+
 test("a fixed shortcut overrides the MRU open-app match", function()
   local finder = newApp("Finder", "com.apple.finder")
   local chrome = newApp("Google Chrome", "com.google.Chrome")
