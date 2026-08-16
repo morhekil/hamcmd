@@ -141,6 +141,40 @@ function obj:_startCycle(key, fixedApp)
   self:_advanceCycle()
 end
 
+function obj:_startDynamicCycle(key, candidates, frontmostID)
+  local order = {}
+  local frontmostIndex = nil
+  for index, app in ipairs(candidates) do
+    local bundleID = app:bundleID()
+    table.insert(order, bundleID)
+    if bundleID == frontmostID then
+      frontmostIndex = index
+    end
+  end
+
+  if #order == 1 then
+    if not frontmostIndex then
+      candidates[1]:activate()
+    end
+    return
+  end
+
+  local index = frontmostIndex or 1
+  self._cycle = {
+    key = key,
+    order = order,
+    index = index,
+    targetID = order[index],
+    lastPress = hs.timer.secondsSinceEpoch(),
+  }
+
+  if frontmostIndex then
+    self:_advanceCycle()
+  else
+    self:_activateCycleTarget(candidates[1])
+  end
+end
+
 function obj:_switchFixed(key, fixedBundleID)
   local fixedApp = self:_runningApp(fixedBundleID)
   if not fixedApp then
@@ -174,17 +208,25 @@ function obj:switch(key)
     return
   end
 
+  local frontmost = hs.application.frontmostApplication()
+  local frontmostID = frontmost and frontmost:bundleID() or nil
+  local now = hs.timer.secondsSinceEpoch()
+  local continuing = self._cycle
+    and self._cycle.key == key
+    and self._cycle.targetID == frontmostID
+    and now - self._cycle.lastPress <= self.cycleTimeout
+  if continuing then
+    self:_advanceCycle()
+    return
+  end
+
   self._cycle = nil
   local candidates = self:_candidates(key)
   if not candidates[1] then
     return
   end
 
-  local frontmost = hs.application.frontmostApplication()
-  local frontmostID = frontmost and frontmost:bundleID() or nil
-  if candidates[1]:bundleID() ~= frontmostID then
-    candidates[1]:activate()
-  end
+  self:_startDynamicCycle(key, candidates, frontmostID)
 end
 
 function obj:_setHotkeysEnabled(enabled)

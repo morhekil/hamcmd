@@ -7,20 +7,23 @@ is not required.
 
 ## Behaviour
 
-- An unconfigured letter focuses the most recently activated running Dock app
-  whose name starts with that letter.
-- Unconfigured letters never launch apps and never cycle. If there is no running
-  match, nothing happens.
+- An unconfigured letter focuses the most recently activated matching Dock app,
+  then repeated presses cycle through the other running matches.
+- App names match their displayed-name initial after invisible prefixes are
+  ignored. Vendor-prefixed names also match the product initial, so Microsoft
+  Excel matches both `M` and `E` without configuration.
+- Unconfigured letters never launch apps. If there is no running match, nothing
+  happens.
 - A fixed letter always targets its configured bundle ID. It launches the app when
   absent and focuses it when it is running in the background.
 - Pressing a fixed letter while its app is already frontmost starts a stable cycle
   through the other running apps whose names begin with that letter, then returns
   to the fixed app.
-- Pausing longer than `cycleTimeout` resets the cycle. The next press focuses the
-  fixed app.
+- Pausing longer than `cycleTimeout` rebuilds a dynamic cycle from current app
+  recency, or resets a fixed cycle so the next press focuses the fixed app.
 
-HamCmd keeps only in-memory application recency and cycle state. It does not store
-or infer shortcut assignments.
+HamCmd keeps only in-memory application recency and cycle state. It does not
+persist inferred matches or launch apps that are not explicitly configured.
 
 ## Install
 
